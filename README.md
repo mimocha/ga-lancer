@@ -13,3 +13,14 @@ Work was done between October 2017 - March 2018.
 Files are being revised and uploaded retroactively.
 
 ------------------------------------------------------------------------------------
+
+Revision 0.01.0
+
+Added file "main.m" - originally "VehicleSimulation_10a.m"
+	Class Work - Completed: 11.24.2017
+	Final version from textbook -- based on example "mobile10demo.m"
+
+Explanations pending
+
+------------------------------------------------------------------------------------
+
