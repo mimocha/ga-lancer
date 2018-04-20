@@ -1,46 +1,56 @@
-% Revision 0.01.0
-% Class Work - Completed: 11.24.2017
-% Final version from textbook -- based on example "mobile10demo.m"
+% Revision 0.02.0
+% Class Work - Completed: 12.15.2017
+% Self improved versions, starting from this revision.
+%
+% Changes:
+% Added new variables IntGR IntGL IntLR IntLL for intersection coordinates
+% Renamed [lookahead -> sensorY] | [senseangle -> sensorX]
+% Aesthetically reformatted Car Model definition
+% Pointers for updating axis objects
+% Predefines sensor data plot
+% Overhauled sensor calculations:
+%	Fixed bug where simulation ends if tracks end or break
+%	Fixed with line intersection algorithm: polyxpoly()
+%	Also optimized and changed code to use pointers instead
 
-%% Define Variables
+clear
 close all
 
-% Loads map from variable VehicleMap (Loaded manually)
+%% Define Variables
+
+% Loads map automatically from file gmap.mat
 % Matrix should be in format:
-% [Ax1 Ax2 ... xn ; Ay1 Ay2 ... yn ; Bx1 Bx2 ... Bxn ; By1 By2 ... Byn ];
+% [Ax1 ... xn ; Ay1 ... yn ; Bx1 ... Bxn ; By1 ... Byn ];
 % Where each coordinate pair (Axn, Ayn) or (Bxn, Byn) makes up one vertex
 % of the road edge.
-% G_MAP -> GLOBAL MAP
-gmap = VehicleMap'; 
 
-% Get starting coordinate
-x = (gmap(1,1) + gmap(3,1))/2;
-y = (gmap(2,1) + gmap(4,1))/2;
-% Coordinate matrix for local coordinate calculations
-xyxy = [x;y;x;y];
-% Define trajectory matrix
-trajectory = [x;y];
+% gmap = VehicleMap';
+load('gmap.mat') % G_MAP -> GLOBAL MAP
+x = (gmap(1,1) + gmap(3,1))/2; % Get starting coordinate
+y = (gmap(2,1) + gmap(4,1))/2; % Get starting coordinate
+xyxy = [x;y;x;y]; % Coordinate matrix for local coordinate calculations
+trajectory = [x;y]; % Define trajectory matrix
+IntGR = [0 0]; % Intersect Global Right
+IntGL = [0 0]; % Intersect Global Left
 
-% Calculating theta for car and map rotation
-theta = atan2(gmap(2,2)-gmap(2,1) , gmap(1,2)-gmap(1,1)) - pi/2;
-% R -> Car rotation matrix
-R = [cos(theta),-sin(theta) ; sin(theta),cos(theta)];
-% Rm -> Map rotation matrix
-Rm = [R', zeros(2) ; zeros(2), R'];
+theta = atan2(gmap(2,2)-gmap(2,1) , gmap(1,2)-gmap(1,1)) - pi/2; % Theta for car and map rotation
+R = [cos(theta),-sin(theta) ; sin(theta),cos(theta)]; % R -> Car rotation matrix
+Rm = [R', zeros(2) ; zeros(2), R']; % Rm -> Map rotation matrix
 
 % Converts Global Map to Local Map
-% L_MAP -> LOCAL MAP
-lmap = Rm*(gmap - xyxy(:,ones(1,length(gmap)))); 
+lmap = Rm*(gmap - xyxy(:,ones(1,length(gmap)))); % L_MAP -> LOCAL MAP
+IntLR = [0 0]; % Intersect Local Right
+IntLL = [0 0]; % Intersect Local Left
 
 % Simulation Parameters
-dt = 0.1;			% Simulation timestep size (seconds)
-speed = 10;			% Vehicle speed
+dt = 0.05;			% Simulation timestep size (seconds)
+speed = 5;			% Vehicle speed
 D = 0.5;			% Distance between car front - back axle
 roadwidth = 3;		% Width of the road (no effect on sim)
 eyeheight = 3;		% Height of POV (no effect on sim)
 viewangle = 3;		% Viewing POV angle (no effect on sim)
-lookahead = 3;		% Line camera reading distance (affects sim)
-senseangle = 10;	% Width of line camera (affects sim)
+sensorY = 3;	% lookahead -> sensorY  | Line camera reading distance (affects sim)
+sensorX = 10;	% senseangle -> sensorX | Width of line camera (affects sim)
 
 % Converts Local Map to Near Map (Car POV)
 % N_MAP -> NEAR MAP
@@ -50,8 +60,8 @@ nmap([1,3],:) = nmap([1,3],:)./nmap([2,4],:);
 nmap([2,4],:) = -eyeheight./nmap([2,4],:);
 
 % Define Car model & create new Car
-Car = 	[0,0; 1,-0.5; 0,1.5; -1,-0.5; 0,0;...
-		 nan,nan; -senseangle,lookahead; senseangle,lookahead]';
+Car = [0    1   0   -1 0 nan -sensorX 0       nan sensorX 0;
+	   0 -0.5 1.5 -0.5 0 nan  sensorY sensorY nan sensorY sensorY];
 newCar = R*Car;
 
 theta = theta + 25*pi/180;
@@ -60,6 +70,10 @@ theta = theta + 25*pi/180;
 % Global Coordinate View
 subplot(2,2,1); 
 plot(gmap([1,3],:)', gmap([2,4],:)'); 
+% PMGL/R => Pointer Marker Global Left/Right
+% Use object handles (pointers) to quickly redraw them
+pmgl = mapshow(IntGL(1), IntGL(2), 'DisplayType', 'Point', 'Marker', 'o');
+pmgr = mapshow(IntGR(1), IntGR(2), 'DisplayType', 'Point', 'Marker', 'o');
 axis equal
 hold on;
 hnewcar1 = plot(newCar(1,:)+x, newCar(2,:)+y,...
@@ -69,6 +83,9 @@ hold off;
 % Local Coordinate View
 subplot(2,2,2); 
 hlmap2 = plot(lmap([1,3],:)', lmap([2,4],:)'); 
+% PMLL/R => Pointer Marker Local Left/Right
+pmll = mapshow(IntLL(1), IntLL(2), 'DisplayType', 'Point', 'Marker', 'o');
+pmlr = mapshow(IntLR(1), IntLR(2), 'DisplayType', 'Point', 'Marker', 'o');
 axis equal
 hold on;
 plot(Car(1,:), Car(2,:));
@@ -81,6 +98,21 @@ hlmap3 = plot(nmap([1,3],:)', nmap([2,4],:)');
 set(gca, 'xlim', viewangle*roadwidth*[-0.5,0.5],...
 		 'ylim', [-eyeheight,0]);
 
+% Sensor Data View
+subplot(2,2,4);
+linesenseind = [5 -5]; % Placeholder Data
+hlmap4 = plot(mean(linesenseind), 0, 'rp');
+set(gca, 'xlim', [-10 10], 'ylim', [0 1.2], 'xdir', 'reverse');
+pl = line(linesenseind([1,1],:), [0.9,0.9;0,0], 'marker', 'o');
+textx = [linesenseind(2),...
+		 mean(linesenseind),...
+		 linesenseind(1)];
+texty = [1, 0.1, 1];
+texts = {string(round(textx(1),3)),...
+		 string(round(textx(2),3)),...
+		 string(round(textx(3),3))};
+pt = text(textx, texty, texts,...
+	'HorizontalAlignment', 'Center');
 
 %% Simulation Loop
 while (1)
@@ -104,75 +136,102 @@ while (1)
 	set(hlmap3(1), 'xdata', nmap(1,:), 'ydata', nmap(2,:));
 	set(hlmap3(2), 'xdata', nmap(3,:), 'ydata', nmap(4,:));
 
-	% Splits the track into left and right edge
-	viewmap12 = lmap(1:2,:); % BLU LINE (Right)
-	viewmap34 = lmap(3:4,:); % RED LINE (Left)
-	linesense = [-senseangle,senseangle ; lookahead,lookahead];
-
-	% Checks only vertices within X radius (senseangle - Sensor Width)
-	viewmap12 = viewmap12(:, abs(viewmap12(1,:)) < senseangle );
-	viewmap34 = viewmap34(:, abs(viewmap34(1,:)) < senseangle );
-
-	% Gets the closest and furthest vertices of each line, by checking the
-	% Y coordinate distance, lookahead. In effect, this function gets the
-	% next vertex in front of the line camera, and the vertex just behind.
-	% Will cause error if any step returns a null value; as linsenseind
-	% interpolation requires atleast 2 pairs of vertices.
-	% 12 MIN
-	ind = find(viewmap12(2,:) >= lookahead);
-	[~,mind] = min(viewmap12(2,ind));
-	cross12 = viewmap12(:,ind(mind));
-	% 12 MAX
-	ind = find(viewmap12(2,:) < lookahead);
-	[~,mind] = max(viewmap12(2,ind));
-	cross12 = [cross12,viewmap12(:,ind(mind))];
-	% 34 MIN
-	ind = find(viewmap34(2,:) >= lookahead);
-	[~,mind] = min(viewmap34(2,ind));
-	cross34 = viewmap34(:,ind(mind));
-	% 34 MAX
-	ind = find(viewmap34(2,:) < lookahead);
-	[~,mind] = max(viewmap34(2,ind));
-	cross34 = [cross34,viewmap34(:,ind(mind))];
-
-	% Checks if the previous function returned a value,
-	% and used the interpolation function interpl() to find where the lines
-	% intersected. (Line camera and road edge)
-	if (~isempty(cross12(1,:)))
-		% ~isempty() (~ for NOT) runs faster than checking length(>0)
-		linesenseind = interp1(cross12(2,:), cross12(1,:), lookahead);
+	%% Sensor Calculations
+	% Sensor format
+	%		Sensor Right -> [ RightX CenterX ; RightY CenterY ]
+	%		Sensor Left  -> [ LeftX  CenterX ; LeftY  CenterY ]
+	sensorR = [Car(1,10), Car(1,11); Car(2,10), Car(2,11)];
+	sensorL = [Car(1,7) , Car(1,8) ; Car(2,7) , Car(2,8)];
+	
+	% The following checks if sensor intersects with track
+	%	Checks for Global & Local Track seperately
+	%		(Need more elegant solution to check NULL answers)
+	%	If doesn't intersect, returns value of sensor's edge
+	%		ie, like sensor detects no track; return longest distance possible
+	%
+	%	Intersection = polyxpoly(sensorX, sensorY, mapX, mapY)
+	%		Each variable is a matrix corresponding to points of a line
+	%		Returns [x-pos y-pos] -> each is an N by 1 matrix
+	%		N for number of intersect points
+	%
+	%	Length = 0
+	%		-> return sensor's edge (No Intersect)
+	%		Length = 1
+	%			-> return Intersect (1 Intersect)
+	%		Length > 1
+	%			-> return first entry (Multi Intersects)
+	
+	% Intersects sensor with LOCAL MAP
+	LENGTH_CHECK = length(polyxpoly(sensorR(1,:), sensorR(2,:), lmap(1,:), lmap(2,:))); % Checks length of results
+	if (LENGTH_CHECK == 0)
+		IntLR = sensorR(:,1)';
 	else
-		linesenseind = [];
+		if (LENGTH_CHECK == 1)
+			[IntLR(1), IntLR(2)] = polyxpoly(sensorR(1,:), sensorR(2,:), lmap(1,:), lmap(2,:));
+		else
+			[tmpx, tmpy] = polyxpoly(sensorR(1,:), sensorR(2,:), lmap(1,:), lmap(2,:));
+			IntLR = [tmpx(1), tmpy(1)];
+		end
 	end
-
-	if (~isempty(cross34(1,:)))
-		% ~isempty() (~ for NOT) runs faster than checking length(>0)
-		linesenseind = [linesenseind, interp1(cross34(2,:), cross34(1,:), lookahead)];
-	end
-
-	% If line crossed on atleast one side, plot sensor data output.
-	% Would cause error if only one side of the lines crossed.
-	if (~isempty(linesenseind))
-		subplot(2,2,4);
-		textx = [linesenseind(2),...
-				 mean(linesenseind),...
-				 linesenseind(1)];
-		texty = [1, 0.1, 1];
-		texts = {string(round(textx(1),3)),...
-				 string(round(textx(2),3)),...
-				 string(round(textx(3),3))};
-		plot(linesenseind([1,1],:), [0.9,0.9;0,0], 'o',...
-			 textx(2), 0, 'rp');
-		axis([-10,10,0,1.2]);
-		line(linesenseind([1,1],:), [0.9,0.9;0,0]);
-		text(textx, texty, texts,...
-			'HorizontalAlignment', 'Center')
+	LENGTH_CHECK = length(polyxpoly(sensorL(1,:), sensorL(2,:), lmap(3,:), lmap(4,:)));
+	if (LENGTH_CHECK == 0)
+		IntLL = sensorL(:,1)';
+	else
+		if (LENGTH_CHECK == 1)
+			[IntLL(1), IntLL(2)] = polyxpoly(sensorL(1,:), sensorL(2,:), lmap(3,:), lmap(4,:));
+		else
+			[tmpx, tmpy] = polyxpoly(sensorL(1,:), sensorL(2,:), lmap(3,:), lmap(4,:));
+			IntLL = [tmpx(1), tmpy(1)];
+		end
 	end
 	
-	% If lines did not cross, end simulation
-	if (isempty(linesenseind))
-		break;
+	sensorR = [newCar(1,10), newCar(1,11); newCar(2,10), newCar(2,11)] + [x;y];
+	sensorL = [newCar(1,7) , newCar(1,8) ; newCar(2,7) , newCar(2,8)]  + [x;y];
+	
+	% Intersects sensor with GLOBAL MAP + [x,y] to adjust for Global Pos
+	LENGTH_CHECK = length(polyxpoly(sensorR(1,:), sensorR(2,:), gmap(1,:), gmap(2,:)));
+	if (LENGTH_CHECK == 0)
+		IntGR = sensorR(:,1)';
+	else
+		if (LENGTH_CHECK == 1)
+			[IntGR(1), IntGR(2)] = polyxpoly(sensorR(1,:), sensorR(2,:), gmap(1,:), gmap(2,:));
+		else
+			[tmpx, tmpy] = polyxpoly(sensorR(1,:), sensorR(2,:), gmap(1,:), gmap(2,:));
+			IntGR = [tmpx(1), tmpy(1)];
+		end
 	end
+	LENGTH_CHECK = length(polyxpoly(sensorL(1,:), sensorL(2,:), gmap(3,:), gmap(4,:)));
+	if (LENGTH_CHECK == 0)
+		IntGL = sensorL(:,1)';
+	else
+		if (LENGTH_CHECK == 1)
+			[IntGL(1), IntGL(2)] = polyxpoly(sensorL(1,:), sensorL(2,:), gmap(3,:), gmap(4,:));
+		else
+			[tmpx, tmpy] = polyxpoly(sensorL(1,:), sensorL(2,:), gmap(3,:), gmap(4,:));
+			IntGL = [tmpx(1), tmpy(1)];
+		end
+	end
+	
+	linesenseind = [IntLR(1) IntLL(1)];
+	
+	%% Updates
+	% Updates Intersect marker location
+	set(pmgl, 'xdata', IntGL(1), 'ydata', IntGL(2));
+	set(pmgr, 'xdata', IntGR(1), 'ydata', IntGR(2));
+	set(pmll, 'xdata', IntLL(1), 'ydata', IntLL(2));
+	set(pmlr, 'xdata', IntLR(1), 'ydata', IntLR(2));
+	
+	% Update Sensor Data View
+	set(hlmap4, 'xdata', mean(linesenseind)*5);
+	set(pl(1), 'xdata', linesenseind([1,1]));
+	set(pl(2), 'xdata', linesenseind([2,2]));
+	textx = [linesenseind(2) mean(linesenseind) linesenseind(1)];
+	texts = {string(round(textx(1),3)),...
+			 string(round(textx(2),3)),...
+			 string(round(textx(3),3))};
+	set(pt(1), 'string', texts(1), 'position', [textx(1) 1]);
+	set(pt(2), 'string', texts(2), 'position', [textx(2) 0.1]);
+	set(pt(3), 'string', texts(3), 'position', [textx(3) 1]);
 	
 	% Determines the steering by taking the average of the sensor output.
 	% Updates the car, and plot its trajectory.
@@ -181,9 +240,11 @@ while (1)
 	x = x + speed*dt*cos(theta + pi/2);
 	y = y + speed*dt*sin(theta + pi/2);
 	trajectory = [trajectory,[x;y]];
+	if (length(trajectory) > 1000) % Limits length of trajectory
+		trajectory(:,1) = [];
+	end
 	set(hnewcar1(2), 'xdata', trajectory(1,:), 'ydata', trajectory(2,:));
 	
 	% Draw, repeat.
-	drawnow; 
-	%pause(0.1);
+	drawnow;
 end
