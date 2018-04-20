@@ -20,7 +20,14 @@ Added file "main.m" - originally "VehicleSimulation_10a.m"
 	Class Work - Completed: 11.24.2017
 	Final version from textbook -- based on example "mobile10demo.m"
 
-Explanations pending
+------------------------------------------------------------------------------------
+
+Revision 0.01.1
+
+Added some documentation to main.m, explaining variables and some calculations.
+Refer to the textbook for full explanation on the hows and whys.
 
 ------------------------------------------------------------------------------------
+
+Revision 
 
