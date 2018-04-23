@@ -13,6 +13,19 @@ Work was done between October 2017 - March 2018.
 Files are being revised and uploaded retroactively.
 
 ---
+### Revision 0.03.3
+Added *Maps* folder, containing all .mat files which contains MAP coordinates  
+Created new folder, *Miscellany* to contain non-essential functions and scripts.  
+*Last Changed: 1.31.2018*  
+Added "gmap_view.m" into Miscellany  
+*Originally "gmap_view.m"*  
+*Personal Project - Completed: 12.18.2017*  
+Moved Tensorflow files into Miscellany
+
+*Notes: Evaluation_XXb.mat files contain two rows of coordinate, instead of four.*  
+*This was implemented later, in the version VehicleSimulation_10f.m*
+
+---
 ### Revision 0.03.2
 Added Tensorflow python files  
 *Originally "Neural Model.py" and "Neural Net Example.txt"*  
