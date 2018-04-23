@@ -13,6 +13,12 @@ Work was done between October 2017 - March 2018.
 Files are being revised and uploaded retroactively.
 
 ---
+### Revision 0.03.2
+Added Tensorflow python files  
+*Originally "Neural Model.py" and "Neural Net Example.txt"*  
+*Personal Project - Completed: 12.22.2017*
+
+---
 ### Revision 0.03.1
 Fixed Markdown styling in README.md for GitHub
 
