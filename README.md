@@ -1,4 +1,4 @@
-# MATLAB-GA-Simulation
+# GA-Lancer
 
 ## Background:
 This is a personal project based on the book (Japanese):
@@ -11,6 +11,11 @@ then apply machine learning to an agent. (Genetic Algorithm was used in this cas
 This simulation was done for the Robot Lancer competition 2018.  
 Work was done between October 2017 - March 2018.  
 Files are being revised and uploaded retroactively.
+
+---
+### Revision 0.03.4
+Renamed repository from "MATLAB-GA-Simulation" to "ga-lancer"
+For shorter and less generic name.
 
 ---
 ### Revision 0.03.3
